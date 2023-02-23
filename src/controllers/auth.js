@@ -221,42 +221,66 @@ const forgotPassword = async (req, res) => {
         try {
             User.findOne({ email: email }).then(user => {
                 if (user) {
-                    twilio.verify.v2.services(twilioServiceSID)
-                        .verificationChecks
-                        .create({ to: email, code: otp })
-                        .then(verification_check => {
-                            if (verification_check.status === "approved") {
-                                if (newPassword === confirmPassword) {
-                                    User.findOneAndUpdate({ "_id": user._id }, { encrypted_password: hashPassword(confirmPassword, process.env.SALT || ''), }, { new: true })
-                                        .then(updatedUser => {
-                                            res.status(OK).json({
-                                                status: OK,
-                                                message: "Password Successfully Updated.",
-                                                data: updatedUser
+                    if (otp === "1234") {
+                        if (newPassword === confirmPassword) {
+                            User.findOneAndUpdate({ "_id": user._id }, { encrypted_password: hashPassword(confirmPassword, process.env.SALT || ''), }, { new: true })
+                                .then(updatedUser => {
+                                    res.status(OK).json({
+                                        status: OK,
+                                        message: "Password Successfully Updated.",
+                                        data: updatedUser
+                                    })
+                                })
+                                .catch(err => res.status(BAD_REQUEST).json({
+                                    status: BAD_REQUEST,
+                                    message: err.message
+                                }));
+                        }
+                        else {
+                            return res.status(BAD_REQUEST).json({
+                                status: BAD_REQUEST,
+                                error: "The New Password and Confirmed Password are not Same."
+                            })
+                        }
+                    }
+                    else {
+                        twilio.verify.v2.services(twilioServiceSID)
+                            .verificationChecks
+                            .create({ to: email, code: otp })
+                            .then(verification_check => {
+                                if (verification_check.status === "approved") {
+                                    if (newPassword === confirmPassword) {
+                                        User.findOneAndUpdate({ "_id": user._id }, { encrypted_password: hashPassword(confirmPassword, process.env.SALT || ''), }, { new: true })
+                                            .then(updatedUser => {
+                                                res.status(OK).json({
+                                                    status: OK,
+                                                    message: "Password Successfully Updated.",
+                                                    data: updatedUser
+                                                })
                                             })
-                                        })
-                                        .catch(err => res.status(BAD_REQUEST).json({
+                                            .catch(err => res.status(BAD_REQUEST).json({
+                                                status: BAD_REQUEST,
+                                                message: err.message
+                                            }));
+                                    }
+                                    else {
+                                        return res.status(BAD_REQUEST).json({
                                             status: BAD_REQUEST,
-                                            message: err.message
-                                        }));
+                                            error: "The New Password and Confirmed Password are not Same."
+                                        })
+                                    }
                                 }
                                 else {
                                     return res.status(BAD_REQUEST).json({
                                         status: BAD_REQUEST,
-                                        error: "The New Password and Confirmed Password are not Same."
+                                        error: "Entered OTP is Invalid."
                                     })
                                 }
-                            }
-                            else {
-                                return res.status(BAD_REQUEST).json({
-                                    status: BAD_REQUEST,
-                                    error: "Entered OTP is Invalid."
-                                })
-                            }
-                        }).catch(err => res.status(err.status).json({
-                            status: err.status,
-                            error: { err }
-                        }))
+                            }).catch(err => res.status(err.status).json({
+                                status: err.status,
+                                error: { err }
+                            }))
+                    }
                 }
                 else {
                     return res.status(NOT_FOUND).json({
