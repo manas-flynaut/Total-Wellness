@@ -76,7 +76,6 @@ const signUp = async (req, res) => {
                             newUser
                                 .save()
                                 .then(user => {
-                                    addNotification(user._id, "You have successfully signed up.")
                                     res.status(OK).json({
                                         status: OK,
                                         message: "User Registered Successfully.",
@@ -89,44 +88,46 @@ const signUp = async (req, res) => {
                                 }));
                         }).catch(err => loggerUtil(err))
                 }
-                twilio.verify.v2.services(twilioServiceSID)
-                    .verificationChecks
-                    .create({ to: email, code: otp })
-                    .then(verification_check => {
-                        if (verification_check.status === "approved") {
-                            User
-                                .findOne({})
-                                .sort({ createdAt: -1 })
-                                .then((data) => {
-                                    const newUser = new User({
-                                        userId: data?.userId ? data.userId + 1 : 1,
-                                        role: 1,
-                                        email: email,
-                                        encrypted_password: hashPassword(password, process.env.SALT || ''),
-                                    });
-                                    newUser
-                                        .save()
-                                        .then(user => res.status(OK).json({
-                                            status: OK,
-                                            message: "User Registered Successfully.",
-                                            data: user
-                                        }))
-                                        .catch(err => res.status(BAD_REQUEST).json({
-                                            status: BAD_REQUEST,
-                                            message: err.message
-                                        }));
-                                }).catch(err => loggerUtil(err))
-                        }
-                        else {
-                            return res.status(BAD_REQUEST).json({
-                                status: BAD_REQUEST,
-                                error: "Entered OTP is Invalid."
-                            })
-                        }
-                    }).catch(err => res.status(err.status).json({
-                        status: err.status,
-                        error: { err }
-                    }))
+                else {
+                    twilio.verify.v2.services(twilioServiceSID)
+                        .verificationChecks
+                        .create({ to: email, code: otp })
+                        .then(verification_check => {
+                            if (verification_check.status === "approved") {
+                                User
+                                    .findOne({})
+                                    .sort({ createdAt: -1 })
+                                    .then((data) => {
+                                        const newUser = new User({
+                                            userId: data?.userId ? data.userId + 1 : 1,
+                                            role: 1,
+                                            email: email,
+                                            encrypted_password: hashPassword(password, process.env.SALT || ''),
+                                        });
+                                        newUser
+                                            .save()
+                                            .then(user => res.status(OK).json({
+                                                status: OK,
+                                                message: "User Registered Successfully.",
+                                                data: user
+                                            }))
+                                            .catch(err => res.status(BAD_REQUEST).json({
+                                                status: BAD_REQUEST,
+                                                message: err.message
+                                            }));
+                                    }).catch(err => loggerUtil(err))
+                            }
+                            else {
+                                return res.status(BAD_REQUEST).json({
+                                    status: BAD_REQUEST,
+                                    error: "Entered OTP is Invalid."
+                                })
+                            }
+                        }).catch(err => res.status(err.status).json({
+                            status: err.status,
+                            error: { err }
+                        }))
+                }
             }
         }).catch((err) => {
             return res.status(INTERNAL_SERVER_ERROR).json({
