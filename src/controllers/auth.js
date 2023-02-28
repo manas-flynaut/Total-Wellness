@@ -76,9 +76,21 @@ const signUp = async (req, res) => {
                             newUser
                                 .save()
                                 .then(user => {
+                                    const expiryTime = new Date()
+                                    expiryTime.setMonth(expiryTime.getMonth() + 6)
+                                    const exp = expiryTime.getTime() / 1000
+                                    const token = jwt.sign(
+                                        { _id: user._id, exp: exp },
+                                        process.env.SECRET || ''
+                                    )
+                                    res.cookie('Token', token, {
+                                        expires: new Date(Date.now() + 900000),
+                                        httpOnly: true
+                                    })
                                     res.status(OK).json({
                                         status: OK,
                                         message: "User Registered Successfully.",
+                                        token,
                                         data: user
                                     })
                                 })
@@ -106,11 +118,26 @@ const signUp = async (req, res) => {
                                         });
                                         newUser
                                             .save()
-                                            .then(user => res.status(OK).json({
-                                                status: OK,
-                                                message: "User Registered Successfully.",
-                                                data: user
-                                            }))
+                                            .then(user => {
+                                                const expiryTime = new Date()
+                                                expiryTime.setMonth(expiryTime.getMonth() + 6)
+                                                const exp = expiryTime.getTime() / 1000
+                                                const token = jwt.sign(
+                                                    { _id: data._id, exp: exp },
+                                                    process.env.SECRET || ''
+                                                )
+                                                res.cookie('Token', token, {
+                                                    expires: new Date(Date.now() + 900000),
+                                                    httpOnly: true
+                                                })
+                                                res.status(OK).json({
+                                                    status: OK,
+                                                    message: "User Registered Successfully.",
+                                                    token,
+                                                    data: user
+                                                })
+                                            }
+                                            )
                                             .catch(err => res.status(BAD_REQUEST).json({
                                                 status: BAD_REQUEST,
                                                 message: err.message
@@ -208,7 +235,7 @@ const signout = (req, res) => {
     })
 }
 
-const forgotPassword = async (req, res) => {
+const verifyOTPforgotPassword = async (req, res) => {
     try {
         const errors = validationResult(req) || []
         if (!errors.isEmpty()) {
@@ -217,31 +244,27 @@ const forgotPassword = async (req, res) => {
                 error: errors.array()[0]?.msg
             })
         }
-        const { newPassword, confirmPassword, email, otp } = req.body
+        const { email, otp } = req.body
         try {
             User.findOne({ email: email }).then(user => {
                 if (user) {
                     if (otp === "1234") {
-                        if (newPassword === confirmPassword) {
-                            User.findOneAndUpdate({ "_id": user._id }, { encrypted_password: hashPassword(confirmPassword, process.env.SALT || ''), }, { new: true })
-                                .then(updatedUser => {
-                                    res.status(OK).json({
-                                        status: OK,
-                                        message: "Password Successfully Updated.",
-                                        data: updatedUser
-                                    })
-                                })
-                                .catch(err => res.status(BAD_REQUEST).json({
-                                    status: BAD_REQUEST,
-                                    message: err.message
-                                }));
-                        }
-                        else {
-                            return res.status(BAD_REQUEST).json({
-                                status: BAD_REQUEST,
-                                error: "The New Password and Confirmed Password are not Same."
-                            })
-                        }
+                        const expiryTime = new Date()
+                        expiryTime.setMonth(expiryTime.getMonth() + 6)
+                        const exp = expiryTime.getTime() / 1000
+                        const token = jwt.sign(
+                            { _id: user.id, exp: exp },
+                            process.env.SECRET || ''
+                        )
+                        res.cookie('Token', token, {
+                            expires: new Date(Date.now() + 900000),
+                            httpOnly: true
+                        })
+                        return res.status(OK).json({
+                            status: OK,
+                            message: 'OTP verified Successfully!',
+                            token,
+                        })
                     }
                     else {
                         twilio.verify.v2.services(twilioServiceSID)
@@ -249,26 +272,22 @@ const forgotPassword = async (req, res) => {
                             .create({ to: email, code: otp })
                             .then(verification_check => {
                                 if (verification_check.status === "approved") {
-                                    if (newPassword === confirmPassword) {
-                                        User.findOneAndUpdate({ "_id": user._id }, { encrypted_password: hashPassword(confirmPassword, process.env.SALT || ''), }, { new: true })
-                                            .then(updatedUser => {
-                                                res.status(OK).json({
-                                                    status: OK,
-                                                    message: "Password Successfully Updated.",
-                                                    data: updatedUser
-                                                })
-                                            })
-                                            .catch(err => res.status(BAD_REQUEST).json({
-                                                status: BAD_REQUEST,
-                                                message: err.message
-                                            }));
-                                    }
-                                    else {
-                                        return res.status(BAD_REQUEST).json({
-                                            status: BAD_REQUEST,
-                                            error: "The New Password and Confirmed Password are not Same."
-                                        })
-                                    }
+                                    const expiryTime = new Date()
+                                    expiryTime.setMonth(expiryTime.getMonth() + 6)
+                                    const exp = expiryTime.getTime() / 1000
+                                    const token = jwt.sign(
+                                        { _id: user.id, exp: exp },
+                                        process.env.SECRET || ''
+                                    )
+                                    res.cookie('Token', token, {
+                                        expires: new Date(Date.now() + 900000),
+                                        httpOnly: true
+                                    })
+                                    return res.status(OK).json({
+                                        status: OK,
+                                        message: 'OTP verified Successfully!',
+                                        token,
+                                    })
                                 }
                                 else {
                                     return res.status(BAD_REQUEST).json({
@@ -298,10 +317,55 @@ const forgotPassword = async (req, res) => {
     } catch (err) {
         loggerUtil(err, 'ERROR')
     } finally {
-        loggerUtil(`Forgot Password API Called.`)
+        loggerUtil(`Forgot Password OTP Verification API Called.`)
     }
 }
 
+const forgotPassword = async (req, res) => {
+    try {
+        const errors = validationResult(req) || []
+        if (!errors.isEmpty()) {
+            return res.status(WRONG_ENTITY).json({
+                status: WRONG_ENTITY,
+                error: errors.array()[0]?.msg
+            })
+        }
+        const { newPassword, confirmPassword } = req.body
+        try {
+            const id = req.auth._id
+            if (newPassword === confirmPassword) {
+                User.findOneAndUpdate({ "_id": id }, { encrypted_password: hashPassword(confirmPassword, process.env.SALT || ''), }, { new: true })
+                    .then(updatedUser => {
+                        res.status(OK).json({
+                            status: OK,
+                            message: "Password Successfully Updated.",
+                            data: updatedUser
+                        })
+                    })
+                    .catch(err => res.status(BAD_REQUEST).json({
+                        status: BAD_REQUEST,
+                        message: err.message
+                    }));
+            }
+            else {
+                return res.status(BAD_REQUEST).json({
+                    status: BAD_REQUEST,
+                    error: "The New Password and Confirmed Password are not Same."
+                })
+            }
+
+        } catch (err) {
+            res.status(BAD_REQUEST).json({
+                status: BAD_REQUEST,
+                error: "Something went Wrong."
+            })
+        }
+    } catch (err) {
+        loggerUtil(err, 'ERROR')
+    } finally {
+        loggerUtil(`Forgot Password API Called.`)
+    }
+}
 
 const changePassword = async (req, res) => {
     try {
@@ -373,4 +437,4 @@ const changePassword = async (req, res) => {
     }
 }
 
-module.exports = { sendOtpRequest, signUp, login, signout, forgotPassword, changePassword }
+module.exports = { sendOtpRequest, signUp, login, signout, verifyOTPforgotPassword, forgotPassword, changePassword }
