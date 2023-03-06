@@ -10,7 +10,7 @@ const addCards = async (req, res) => {
 
     User.findOne({ userId: userId }).then((user) => {
       const createCard = new Cards({
-        user: user._id,
+        user: User._id,
         name: name,
         email: email,
         phone: phone,

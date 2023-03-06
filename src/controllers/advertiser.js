@@ -10,7 +10,7 @@ const addAdvertisers = async (req, res) => {
     Advertisers;
     User.findOne({ userId: userId }).then((user) => {
       const createAdvertiser = new Advertisers({
-        user: user._id,
+        user: User._id,
         businessName: businessName,
         contactName: contactName,
         phone: phone,

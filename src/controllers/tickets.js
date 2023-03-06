@@ -10,7 +10,7 @@ const addTickets = async (req, res) => {
 
     User.findOne({ userId: userId }).then((user) => {
       const createTicket = new Tickets({
-        user: user._id,
+        user: User._id,
         ticketId: Math.floor(100000 + Math.random() * 999999),
         title: title,
         content: description,
